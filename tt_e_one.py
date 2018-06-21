@@ -84,11 +84,11 @@ def tt_extractor(filterFlg,upSampleFlg,figFlg):
         a = np.genfromtxt(file_name) #make a an array = the contents of the file
 
         tt = np.zeros((64,120))
-        s_r = np.zeros((3480,120,8,8))
+        s_r = np.zeros((upSampleFlg*348,120,8,8))
 
         with tqdm(total = 7680) as pbar: #initialize our progress bar for progress visualization - 7680 steps in total
             for k in range(0, M): #for each transmission/reception in a file, repeat the following
-                T = a[(k*N_record):((k+1)*N_record):1,20] #T, the temperature, is equal to the temperature data in the range of the kth transmission/reception
+                T = np.array(a[(k*N_record):((k+1)*N_record):1,20]) #T, the temperature, is equal to the temperature data in the range of the kth transmission/reception
 
                 for i in range(0, S): #for each speaker in the array, repeat the following
                     x = np.array(a[(k*N_record):((k+1)*N_record):1,i]) #isolates a single record of speaker data, depending on i, the speaker
@@ -101,7 +101,7 @@ def tt_extractor(filterFlg,upSampleFlg,figFlg):
                     for j in range(0, R): #for each microphone in the array, repeat the following
                         ttExp = getExpt2(i,j,T)
                         t2Exp = np.round(ttExp/dts)+t1
-                        x = np.array(a[((k)*N_record):((k+1)*N_record):1,(S+j)])
+                        x = a[((k)*N_record):((k+1)*N_record):1,(S+j)]
 
                         if filterFlg: #if, when initializing the tt_extractor function, the filterFlg input existed
                             y = sp.fftpack.fft(x) #returns the fourier transform of the real x array in the form of a complex sequence
@@ -112,7 +112,7 @@ def tt_extractor(filterFlg,upSampleFlg,figFlg):
                             for p in range(f[3], len(y)): #eliminates the frequencies to be filtered between f[3] and the end of the array
                                 y[p] = 0
                             x = sp.fftpack.ifft(y) #returns the inverse fourier transform of the complex y array in the form of a complex (but nearly real) sequence
-                            x = (x) #since the output of ifft is not perfectly real, but instead very close to real (Xe-16), here we truncate the imaginary portion of the numbers so they are usable
+                            x = np.real(x) #since the output of ifft is not perfectly real, but instead very close to real (Xe-16), here we truncate the imaginary portion of the numbers so they are usable
 
                         if upSampleFlg: #if, when initializing the tt_extractor function, the upSampleFlg input existed
                             x = sps.resample_poly(x, upSampleFlg, 1) #resample the x array by upSampleFlg/1. If upSampleFlg = 10, the array is upsampled by 10
@@ -131,16 +131,13 @@ def getExpt2(i,j,T): #imports the current speaker (i) and microphone (j) as well
     xyR = np.array(([1.4579,39.7960],[33.4493,39.1313],[39.7780,14.6969],[37.8724,-28.0847],[16.7284,-40.0000],[-23.2493,-38.8741],[-40.0000,-14.8975],[-39.1533,27.7008])) #geographic locations of microphones
     xyS = np.array(([0.6579,39.7960],[32.6493,39.1313],[39.7780,15.4969],[ 37.8724,-27.2847],[17.5284,-40.0000],[-22.4493,-38.8741],[-40.0000,-15.6975],[-39.1533,26.9008])) #geographic locations of speakers
 
-    T = np.asarray(T)
-
     gamma = 1.4 #theoretical constant
     R = 287.058 #theoretical constant
     T = T + 272.15 #converting temperature array from celcius to kelvin
-
-
+    
     c0 = T #copy temperature array for conversion into speed of sound
     c0 = c0 * R * gamma #multiply temperature array element-wise by R and gamma
-    c0 = math.sqrt(c0) #square root array element-wise
+    c0 = np.sqrt(c0) #square root array element-wise
     c0 = np.mean(c0) #the speed of sound over the interval is the mean of the array
 
     V0 = np.array([0, 0])
@@ -149,9 +146,9 @@ def getExpt2(i,j,T): #imports the current speaker (i) and microphone (j) as well
     ell = round(ell,3)
     ell = math.sqrt(ell)
 
-    s = np.array((-xyS[i,:]+xyR[j,:]))
+    s = (-xyS[i,:]+xyR[j,:])
     s = s / ell
-    s = round(s)
+    s = np.round(s)
     np.transpose(s)
     tt = ell/(c0+np.dot(V0,s))*1000
     return tt
@@ -174,11 +171,11 @@ def signalOnSpeaker(x,N_signal,tExp,searchLag):
         for i in range(-searchLag,searchLag+1):
             t1 = np.maximum(tExp+i,1)
             t2 = np.minimum(t1+N_signal-1,Nx)
+            
             signal_var = np.append(signal_var,np.sum(np.multiply((x[t1:t2:1]),(x[t1:t2:1]))))
         
-        i1 = np.argmax(signal_var)
-        i = i1-searchLag-1
-        t1 = np.maximum((i+1+tExp),1)
+        i1 = np.argmax(signal_var)-searchLag-1
+        t1 = np.maximum((i1+1+tExp),1)
         s1 = x[t1-1:(t1+N_signal-1)]
 
     return s1, t1
@@ -228,4 +225,4 @@ def signalOnMic(x,s,tExp,searchLag):
     return s1, t1
 
 
-tt_extractor(1,10,1) #function call of tt_extractor, starting the program
+tt_extractor(1,5,1) #function call of tt_extractor, starting the program
