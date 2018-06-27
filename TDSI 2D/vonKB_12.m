@@ -1,0 +1,10 @@
+function f=vonKB_12(x1,y1,x2,y2,K0);
+x=x1-x2;
+y=y1-y2;
+r=sqrt(x.^2+y.^2);
+ind=(r==0);
+f(ind)=0;
+r1=K0*r(~ind);
+%2^(2/3)/gamma(1/3)=0.59254851554158;
+B1rr=0.59254851554158*K0*(2/3*r1.^(-2/3).*besselk(1/3,r1)-r1.^(1/3).*besselk(4/3,r1));
+f(~ind)=-1/2*x(~ind).*y(~ind)./r(~ind).*B1rr;
